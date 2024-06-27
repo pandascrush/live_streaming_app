@@ -1,0 +1,132 @@
+# worker_processes  1;
+
+# error_log  logs/error.log info;
+
+# events {
+#     worker_connections  1024;
+# }
+
+# rtmp {
+#     server {
+#         listen 1935;
+
+#         application live {
+#             live on;
+#             chunk_size 4096;
+#         }
+		
+#         application hls {
+#             live on;
+#             hls on;  
+#             hls_path temp/hls;  
+#             hls_fragment 10s;  
+#         }
+#     }
+# }
+
+# http {
+#     server {
+#         listen      8080;
+		
+#         location / {
+#             root html;
+#         }
+		
+#         location /stat {
+#             rtmp_stat all;
+#             rtmp_stat_stylesheet stat.xsl;
+#         }
+
+#         location /stat.xsl {
+#             root html;
+#         }
+		
+#         location /hls {  
+#             #server hls fragments  
+#             types{  
+#                 application/vnd.apple.mpegurl m3u8;  
+#                 video/mp2t ts;  
+#             }  
+#             alias temp/hls;  
+#             expires -1;  
+#         }  
+#     }
+# }
+
+
+
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+rtmp {
+    server {
+        listen 1935;  # RTMP listens on port 1935
+        chunk_size 4096;
+
+        application live {
+            live on;  # Enable live streaming
+            record off;  # Disable recording
+
+            # HLS settings for live streams
+            hls on;
+            hls_path c:/nginx/html/live;  # Path for HLS segments
+            hls_fragment 10s;  # Duration of each HLS segment
+            hls_playlist_length 60s;  # Total length of the HLS playlist
+            hls_continuous on;  # Continuous playlist
+
+            # Allow access from any IP (for testing)
+            allow publish all;
+            allow play all;
+        }
+
+        application vod {
+            live on;
+            record off;
+
+            # Static local file streaming using HLS
+            hls on;
+            hls_path c:/nginx/html/vod;  # Path for VOD HLS segments
+            hls_fragment 10s;
+            hls_playlist_length 60s;
+            hls_continuous on;
+
+            # Allow access from any IP (for testing)
+            allow publish all;
+            allow play all;
+        }
+    }
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    # HTTP server for serving HLS content
+    server {
+        listen       8080;  # HTTP listens on port 8080
+        server_name  localhost;
+
+        # Serve HLS segments for live streams
+        location /live/ {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            alias c:/nginx/html/live/;  # Directory for live HLS segments
+            add_header Cache-Control no-cache;
+        }
+
+        # Serve HLS segments for VOD
+        location /vod/ {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            alias c:/nginx/html/vod/;  # Directory for VOD HLS segments
+            add_header Cache-Control no-cache;
+        }
+    }
+}
